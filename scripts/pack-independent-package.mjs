@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { packInventory } from "./npm-pack-inventory.mjs";
 import { releaseDependencyVersion } from "./release-dependencies.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -232,7 +233,7 @@ export async function packIndependentPackage(packageDirectory, outputDirectory, 
     delete published.scripts;
     await writeFile(resolve(stage, "package.json"), `${JSON.stringify(published, null, 2)}\n`);
     await mkdir(output, { recursive: true });
-    const packed = JSON.parse(runNpm([
+    const packed = packInventory(runNpm([
       "pack", "--ignore-scripts", "--pack-destination", output, "--json",
     ], stage, true, { npm_config_cache: resolve(stage, ".npm-cache") }));
     const filename = packed[0]?.filename;

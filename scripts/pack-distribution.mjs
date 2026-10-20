@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { distributionEmbeddedPackageDirectories } from "./distribution-ownership.mjs";
+import { packInventory } from "./npm-pack-inventory.mjs";
 import { releaseDependencyVersion } from "./release-dependencies.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -29,8 +30,12 @@ function npm(args, cwd, capture = false) {
 
 const arguments_ = process.argv.slice(2);
 if (arguments_.some((argument) => argument !== "--types-built")) throw new Error("Unknown distribution pack option.");
-if (!arguments_.includes("--types-built")) npm(["run", "build:public-types"], root);
-const [inventory] = JSON.parse(npm(["pack", "--dry-run", "--ignore-scripts", "--json"], root, true));
+// `--types-built` stays for callers that already use it; HYPIT_TYPES_BUILT carries the same meaning
+// where npm rejects the flag, because npm 12 stops at the first option it does not recognise.
+if (!arguments_.includes("--types-built") && process.env.HYPIT_TYPES_BUILT !== "1") {
+  npm(["run", "build:public-types"], root);
+}
+const [inventory] = packInventory(npm(["pack", "--dry-run", "--ignore-scripts", "--json"], root, true));
 const embeddedPackageDirectories = await distributionEmbeddedPackageDirectories(root);
 let readme = await readFile(resolve(root, "README.md"), "utf8");
 const examples = readme.indexOf("## Examples\n");
@@ -100,7 +105,7 @@ try {
   }
   await mkdir(output, { recursive: true });
   const packed = npm(["pack", "--ignore-scripts", "--pack-destination", output, "--json"], stage, true);
-  const [packedInventory] = JSON.parse(packed);
+  const [packedInventory] = packInventory(packed);
   const packedPaths = new Set(packedInventory.files.map(({ path }) => path));
   for (const directory of embeddedPackageDirectories) {
     if (!packedPaths.has(`packages/${directory}/package.json`)

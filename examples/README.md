@@ -10,6 +10,7 @@ Adapt those relationships to a new work; its scene list and styling are choices 
 | [Podcast](podcast/README.md) | Related host views, product references, motivated cuts and a lifestyle montage | Generate from `reference.svrun` |
 | [Street interview](interview/README.md) | A shared encounter, derived close views, coordinated Moments and Caption tracking | Generate from `reference.svrun` |
 | [Complex spoken explainer](complex-explainer/README.md) | Coordinated project scenes, moving presenter framing, independent Caption, semantic graphic events and graphics-only intervals | Download its accepted media/Result bundle; render locally |
+| [Semantic composition](semantic-composition/README.md) | A project component that moves its viewport, HTML/CSS/SVG inside one VisualTrack, and a chat animation with no Script or generated material | `chat.svml`; render locally with no generation account |
 
 The three generation entries use `reference.svml` and an adjacent `reference.svrun`. They generate
 their main images, recurring voice references and generated clips, then normalize media, align the
@@ -36,6 +37,11 @@ from that directory. Installation and Source checks do not submit generation req
 The other `swap-*` and nested projects preserve separate variations and reuse studies. They have not
 all been rebuilt to the same generation standard as these three reference entries. A linked showcase
 video demonstrates the original production; a fresh generation is a new result and will differ.
+
+The root also holds [`free-local-runtime.json`](free-local-runtime.json): the Runtime Profile that
+declares the local, no-key Providers only (`image.opencv.local`, `media.local`, `html.local`).
+`hypit-free` writes it as a new project's `hypit.runtime.json` and selects it, and
+[semantic-composition](semantic-composition/README.md) renders on exactly those Providers.
 
 For focused package work, `minimal-author-package/` demonstrates independent component packaging;
 [provider-package](provider-package/README.md) demonstrates connecting a chosen service through a

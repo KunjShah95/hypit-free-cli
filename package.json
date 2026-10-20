@@ -201,6 +201,7 @@
     "examples/semantic-composition/*.svrun",
     "examples/semantic-composition/*.svs",
     "examples/semantic-composition/hypit.runtime.json",
+    "examples/free-local-runtime.json",
     "examples/provider-package/README.md",
     "examples/provider-package/packages/*/package.json",
     "examples/provider-package/packages/*/tsconfig.json",

@@ -14,10 +14,11 @@ function npmCli() {
   return value;
 }
 
-function runNpm(args) {
+function runNpm(args, env = {}) {
   execFileSync(process.execPath, [npmCli(), ...args], {
     cwd: repositoryRoot,
     stdio: "inherit",
+    env: { ...process.env, ...env },
   });
 }
 
@@ -119,7 +120,9 @@ export async function packReleaseCandidate(outputDirectory = "dist/release") {
     const tarball = await packIndependentPackage(item.directory, outputDirectory, { buildPublicTypes: false });
     console.log(`Prepared ${item.name}@${item.version}: ${tarball}`);
   }
-  runNpm(["run", "pack:distribution", "--", "--types-built"]);
+  // Say "the public types are already built" through the environment: npm 12 rejects an unknown
+  // script flag such as --types-built before the packer ever sees it.
+  runNpm(["run", "pack:distribution"], { HYPIT_TYPES_BUILT: "1" });
   const candidate = await releaseCandidateTarballs(outputDirectory);
   await writeFile(candidate.plan, `${JSON.stringify({
     format: "hypit.release-plan@1",

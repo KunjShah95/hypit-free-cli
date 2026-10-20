@@ -19,6 +19,9 @@ npm install -g @hypit/hypit
 hypit --version
 ```
 
+The package installs two launchers: `hypit`, and `hypit-free` for work that uses local Providers
+only.
+
 ## One-shot video generation
 
 ```bash
@@ -50,60 +53,59 @@ hypit chat
 This drops into a small REPL that:
 
 - Runs any `hypit` command typed as a line (`check build.svml`, `plan build.svrun`).
-- Supports slash commands: `/help`, `/free`, `/models`, `/version`, `/exit`.
-- Lists free local providers and available provider packages.
+- Creates projects: `/init <dir>` writes a project with the Distribution's own starter Profile,
+  `/initfree <dir>` writes one that declares local Providers only. Both select the Profile they
+  wrote, so `hypit runtime up` works in the new directory.
+- Supports `/help`, `/free`, `/models`, `/profile`, `/version`, `/doctor [project]`, `/exit`.
 
 For environments without an interactive TTY, use `--json` on any command instead.
 
 ## A minimal free/local workflow
 
-Everything below uses only providers that ship with Hypit and declare `pricing.kind: "local"`
-(no API key, no Provider charge):
+`hypit-free` does the setup: in a directory with no project yet it writes `package.json` with the
+`hypit.project` marker, writes `hypit.runtime.json` from the Free Runtime Profile, and selects it.
+It then runs whatever you asked for, or opens the shell when you ask for nothing.
 
 ```bash
-# 1. Create a project directory
+# 1. Make a project directory and set it up (no API key, no credentials)
 mkdir my-video && cd my-video
-echo '{"hypit":{"project":true},"name":"my-video","private":true}' > package.json
+hypit-free
 
-# 2. Create a starter Runtime Profile (free/local by default where possible)
-mkdir -p .hypit/runtimes
-hypit runtime init   # writes hypit.runtime.json and selects it
+# 2. Review hypit.runtime.json: it declares the free local Providers listed below.
+#    Run this once to prepare and start them; the browser download is one time.
+hypit runtime up
 
-# 3. Review the Profile: enable free local providers
-#    endpoints:
-#      image.opencv.local  -> @hypit/provider-image-opencv-local  (OpenCV image ops, needs python3)
-#      media.local         -> @hypit/media-local                  (local media)
-#      html.local          -> @hypit/provider-html-local           (Chromium capture/render)
-#      # whisperx.local   -> @hypit/provider-whisperx-local       (needs local whisperx service)
-#    HypiHub is included by default for hosted generation. Remove it and remove image/video
-#    generation from your composition to stay entirely free/local.
-
-# 4. Prepare and start the Runtime
-hypit runtime up --endpoint image.opencv.local --endpoint media.local --endpoint html.local
-
-# 5. Check an author source, then build
+# 3. Check an author source, then build
 hypit check some-source.svml
 hypit plan some-run.svrun
 hypit build some-run.svrun --follow
 ```
 
+A Profile you wrote yourself is never overwritten, and `hypit-free` leaves an explicit
+`runtime init`, `runtime use` or `runtime unset` alone.
+
 ## Free open-source providers (no key required)
 
 | Endpoint | Package | What it does | Requirement |
 | --- | --- | --- | --- |
-| `image.opencv.local` | `@hypit/provider-image-opencv-local` | Image transform/compose | `python3` on PATH |
+| `image.opencv.local` | `@hypit/provider-image-opencv-local` | Image transform/compose | Python (installed by `runtime up`) |
 | `media.local` | `@hypit/media-local` | Media processing | built-in |
-| `html.local` | `@hypit/provider-html-local` | Browser capture/render | Chromium (auto-install) |
-| `whisperx.local` | `@hypit/provider-whisperx-local` | Word-level speech alignment | local whisperx service (Python) |
+| `html.local` | `@hypit/provider-html-local` | Browser capture/render | Chromium (installed by `runtime up`) |
+| `whisperx.local` | `@hypit/provider-whisperx-local` | Word-level speech alignment | its own local service |
 
-These declare `pricing.kind: "local"` and need no credentials. Use `hypit doctor` to verify.
+These declare `pricing.kind: "local"` and need no credentials. Use `hypit doctor` to verify them.
+
+The first three are what the Free Runtime Profile declares, so a new `hypit-free` project is ready
+after `runtime up`. `whisperx.local` runs a separate local service, so it stays out of that Profile:
+add it to `hypit.runtime.json` when you want word-level speech alignment, then run
+`hypit runtime up --endpoint whisperx.local`.
 
 ## Paid/hosted providers (need accounts/API keys)
 
 HypiHub (recommended hosted), HiAPI, Pollo, BeatAPI, Monid, TokenDance for video/image
 generation models; ElevenLabs/FishAudio/Mimo for speech. Connect with `hypit auth login <endpoint>`
-after selecting a Runtime Profile. See [Models and Providers](guide/providers.md) and
-[model and deployment services](guide/service-partners.md).
+after selecting a Runtime Profile. See [Models and Providers](./providers.md) and
+[model and deployment services](./service-partners.md).
 
 ## Bring your own OSS model
 

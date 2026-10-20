@@ -72,6 +72,26 @@ tell your agent the service name and API documentation so it can set up the appr
 [Agent environments and entry partners](./docs/guide/agents.md) ·
 [Model and deployment services](./docs/guide/service-partners.md)
 
+## A local path with no API key
+
+Model services are optional. `hypit chat` opens an interactive shell that runs any `hypit` command,
+and `hypit-free` runs the same shell in a project that declares local Providers only:
+
+```bash
+hypit chat            # interactive shell; /help lists its slash commands
+hypit-free            # free/local project: writes and selects hypit.runtime.json, then opens the shell
+hypit runtime up      # one time: prepares the selected local Programs (Python environment, Chromium)
+```
+
+The Free Runtime Profile declares `image.opencv.local` (OpenCV image operations), `media.local`
+(media processing) and `html.local` (browser capture and render). Each declares
+`pricing.kind: "local"`, needs no credentials, and together they compile captions, motion graphics
+and code-rendered visuals into a finished video. Add `whisperx.local`
+(`@hypit/provider-whisperx-local`) to the Profile when you want word-level speech alignment; it runs
+its own local service, so it stays out of the default Profile.
+
+[CLI quickstart](./docs/guide/cli-quickstart.md) has the full workflow and the command surface.
+
 ## Examples
 
 ### UGC

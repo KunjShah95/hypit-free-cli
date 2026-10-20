@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -30,10 +30,10 @@ delete env.NODE_OPTIONS;
 delete env.PUPPETEER_SKIP_DOWNLOAD;
 env.PUPPETEER_CACHE_DIR = join(root, "unselected-puppeteer-cache");
 
-function run(command, args, capture = false, expectedCode = 0) {
+function run(command, args, capture = false, expectedCode = 0, cwd = project) {
   console.log(`> ${command} ${args.join(" ")}`);
   return new Promise((resolveRun, reject) => {
-    const child = spawn(command, args, { cwd: project, env, windowsHide: true,
+    const child = spawn(command, args, { cwd, env, windowsHide: true,
       stdio: ["ignore", capture ? "pipe" : "inherit", "inherit"] });
     let stdout = "";
     child.stdout?.setEncoding("utf8").on("data", (text) => { stdout += text; });
@@ -47,6 +47,7 @@ function run(command, args, capture = false, expectedCode = 0) {
 const npm = (...args) => run(process.execPath, [npmCli, ...args]);
 const distribution = join(project, "node_modules", "@hypit", "hypit");
 const hypit = (args, capture = false, expectedCode = 0) => run(process.execPath, [join(distribution, "bin", "hypit.mjs"), ...args], capture, expectedCode);
+const hypitFree = (args, cwd, capture = false, expectedCode = 0) => run(process.execPath, [join(distribution, "bin", "hypit-free.mjs"), ...args], capture, expectedCode, cwd);
 const scope = ["--project", project, "--runtime", join(project, "hypit.runtime.json")];
 let runtimeStarted = false;
 let passed = false;
@@ -85,6 +86,19 @@ try {
   ]);
   await hypit(["--version"]);
   await hypit(["studio", "--help"]);
+
+  // The Free launcher sets a directory up on its own, from files that must be inside the tarball.
+  // This is the path that silently produced a project with no providers when the Free Runtime
+  // Profile was left out of `files`.
+  const freeProject = join(root, "free-project");
+  await mkdir(freeProject);
+  await hypitFree(["--version"], freeProject);
+  const freePaths = JSON.parse(await hypitFree(["paths", "--json"], freeProject, true));
+  assert.equal(freePaths.profileSource, "project", JSON.stringify(freePaths));
+  assert.equal(freePaths.profile, await realpath(join(freeProject, "hypit.runtime.json")));
+  const freeProfile = JSON.parse(await readFile(join(freeProject, "hypit.runtime.json"), "utf8"));
+  assert.deepEqual(Object.keys(freeProfile.endpoints).sort(), ["html.local", "image.opencv.local", "media.local"]);
+  assert.deepEqual(JSON.parse(await readFile(join(freeProject, "package.json"), "utf8")).hypit, { project: true });
 
   const example = join(distribution, "examples", "semantic-composition");
   for (const name of ["chat.svml", "chat.svrun", "chat.svs", "hypit.runtime.json"]) {
