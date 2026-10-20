@@ -166,6 +166,19 @@ export type CliCapabilityPricing = CliCapabilityProvider & {
   readonly pricingError?: string;
 };
 
+/**
+ * One capability the selected Runtime Profile's Endpoints offer, and what it returns.
+ *
+ * The deployment's own catalogue: it names the exact capabilities and result types the configured
+ * Endpoints serve, so a caller can address one without already knowing it.
+ */
+export type CliCapabilityOffer = {
+  readonly capability: CapabilityRef;
+  readonly returns: import("@hypit/protocol").TypeRef;
+  readonly endpoints: readonly string[];
+  readonly binding?: string;
+};
+
 export type CliProviderQuery = {
   readonly request: string;
   readonly capability: CapabilityRef;
@@ -194,6 +207,13 @@ export type CliRuntimeHost = {
   doctor(options?: { readonly capabilities?: readonly CapabilityRef[]; readonly endpoints?: readonly string[] }): Promise<CliRuntimeDoctorResult>;
   providers(requests: readonly CliProviderQuery[]): Promise<readonly CliCapabilityProvider[]>;
   pricing(requests: readonly CliProviderQuery[]): Promise<readonly CliCapabilityPricing[]>;
+  /** Every capability the selected Profile's Endpoints offer, with the result type each one returns. */
+  capabilities(): Promise<readonly CliCapabilityOffer[]>;
+  /**
+   * Execute one immediate Need through the selected Endpoint and its credentials, outside any Build.
+   * The creation-time boundary for observation, transcription and generation; it creates no Build,
+   * Result or state. An asynchronous capability is driven to completion inside the call.
+   */
   invoke(need: Need, resources: ResourceStore, observation?: CliInvocationObservation): Promise<{ readonly value: StoredValue }>;
   openTransientExecution(): Promise<CliTransientExecution>;
 };

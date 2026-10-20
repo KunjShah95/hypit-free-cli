@@ -1,4 +1,6 @@
 import { fileExecutionLogs } from "./log.js";
+import { invokeAsyncEndpointNeed } from "./async-invocation.js";
+import type { AsyncInvocationLimits } from "./async-invocation.js";
 import { constants } from "node:fs";
 import { access, readFile, rm, stat } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
@@ -13,7 +15,7 @@ import { EndpointRegistry, Executor } from "@hypit/hypit/executor";
 import type { EndpointCredential, EndpointFulfillment, EndpointInstance, EndpointRegistrar, EndpointScheduling } from "@hypit/hypit/endpoint";
 import { endpointResourceClaims, verifyEndpointPricingDocument } from "@hypit/hypit/endpoint";
 import { assertBuildId, canonicalize, canonicalStringify } from "@hypit/hypit/protocol";
-import type { CanonicalValue, CapabilityRef, Need } from "@hypit/hypit/protocol";
+import type { CanonicalValue, CapabilityRef, Need, TypeRef } from "@hypit/hypit/protocol";
 import {
   CompositeCredentialStore,
   capacityUnits,
@@ -39,6 +41,7 @@ import type {
   RuntimeOpened,
 } from "@hypit/runtime-local/extension";
 import type {
+  RuntimeHostCapabilityOffer,
   RuntimeHostCapabilityPricing,
   RuntimeHostCapabilityProvider,
   RuntimeHostProviderQuery,
@@ -781,18 +784,76 @@ export async function readRuntimeConfigPricing(
 }
 
 /**
+ * Every capability the selected Profile's Endpoints offer, with the result type each one returns.
+ *
+ * This reads the Profile and the Endpoints' declarations only: it never resolves a credential
+ * and never contacts a service, so a caller can learn what this deployment can do before it
+ * asks for anything.
+ */
+export async function describeRuntimeConfigCapabilities(
+  path: string,
+  options: LoadRuntimeConfigOptions = {},
+): Promise<readonly RuntimeHostCapabilityOffer[]> {
+  const opened = await openRuntimeConfig(path, options.packageRoot);
+  const { root, packageRoot } = opened;
+  const document = opened.document;
+  const hostStateRoot = resolve(options.hostStateRoot ?? hypitHostStateRoot());
+  const registry = options.registry ?? new RuntimeAdapterRegistry();
+  await installRuntimeAdapters(registry, packageRoot, endpointAdapterSelection(document), options.distributionPackageRoot);
+  const activations = await activatedEndpoints(document, root, hostStateRoot, registry);
+  const offers = new Map<string, {
+    readonly capability: CapabilityRef;
+    readonly returns: TypeRef;
+    readonly endpoints: Set<string>;
+  }>();
+  for (const { entry, activation } of activations) {
+    for (const offer of activation.endpoint.offers) {
+      const key = capabilityKey(offer.capability);
+      const existing = offers.get(key);
+      if (existing === undefined) {
+        offers.set(key, {
+          capability: structuredClone(offer.capability),
+          returns: structuredClone(offer.returns),
+          endpoints: new Set([entry.instance]),
+        });
+        continue;
+      }
+      existing.endpoints.add(entry.instance);
+    }
+  }
+  return [...offers.values()]
+    .map((offer) => {
+      const binding = document.bindings[capabilityKey(offer.capability)];
+      return {
+        capability: offer.capability,
+        returns: offer.returns,
+        endpoints: [...offer.endpoints].sort(),
+        ...(binding === undefined ? {} : { binding }),
+      };
+    })
+    .sort((left, right) => capabilityKey(left.capability).localeCompare(capabilityKey(right.capability)));
+}
+
+/**
  * Execute one immediate Need through the selected Profile, outside any Build.
  *
  * This is the creation-time boundary: the same Endpoint activation, capability resolution and
  * credential resolution a Build uses, with no Build id, Worker, Result or stored state. The caller
  * owns the ResourceStore, so whatever the Endpoint reads or returns stays in the caller's hands.
- * Asynchronous capabilities are refused: slow paid generation goes through a Build.
+ *
+ * An asynchronous capability is driven to completion inside this call: the Endpoint submits the
+ * work, this loop polls it until the remote job ends, and the Endpoint's own collect action
+ * fetches the finished artifacts. Slow paid generation therefore works here too, without the
+ * durable Build, Operation and Result state a long compilation needs.
  */
 export async function invokeRuntimeConfigNeed(
   path: string,
   need: Need,
   resources: ResourceStore,
-  options: LoadRuntimeConfigOptions & RuntimeInvocationObservation = {},
+  options: LoadRuntimeConfigOptions & RuntimeInvocationObservation & {
+    /** Bounds for one asynchronous call: how long it waits, and how fast it may act. */
+    readonly limits?: AsyncInvocationLimits;
+  } = {},
 ): Promise<EndpointFulfillment> {
   const opened = await openRuntimeConfig(path, options.packageRoot);
   const { absolute, root, packageRoot } = opened;
@@ -819,9 +880,6 @@ export async function invokeRuntimeConfigNeed(
       + `Say which one does it: add "bindings": { "${subject}": "<instance>" } to the Profile`);
   }
   const registration = resolution.registration;
-  if (registration.kind !== "immediate") {
-    throw new Error(`${subject} is an asynchronous capability; creation-time calls only use immediate capabilities, submit a Build for it`);
-  }
   const activation = activations.find(({ activation: item }) => item.endpoint.instance.id === registration.id)?.activation;
   if (activation === undefined) throw new Error(`Endpoint ${registration.id} is not declared by ${absolute}`);
   const selected = credentialProfile(document, [activation.endpoint]);
@@ -829,6 +887,21 @@ export async function invokeRuntimeConfigNeed(
   const stores = await openCredentialStores(selected, root, hostStateRoot, registry);
   try {
     const credentials = await resolveEndpointCredentials(activation.endpoint, stores.store, absolute);
+    if (registration.kind === "asynchronous") {
+      return await invokeAsyncEndpointNeed({
+        endpointId: registration.id,
+        endpoint: registration.endpoint,
+        need,
+        resources,
+        credentials,
+        ...(registration.scheduling === undefined ? {} : { scheduling: registration.scheduling }),
+        ...(options.limits === undefined ? {} : { limits: options.limits }),
+        observation: {
+          ...(options.reportProgress === undefined ? {} : { reportProgress: options.reportProgress }),
+          ...(options.reportDiagnostic === undefined ? {} : { reportDiagnostic: options.reportDiagnostic }),
+        },
+      });
+    }
     return await registration.handler({
       command: { kind: "fulfill-need", id: `command:${need.id}`, need },
       need,

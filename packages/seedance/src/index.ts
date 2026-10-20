@@ -49,11 +49,12 @@ function seedancePortTable(model: SeedanceModel): GenerationPortTable {
           values: model === "seedance-2"
             ? ["480p", "720p", "1080p", "4k"]
             : is25 ? ["480p", "720p", "1080p"] : ["480p", "720p"],
+          default: "720p",
         },
         minItems: 1,
         maxItems: 1,
       },
-      { name: "aspectRatio", value: { kind: "enum", values: [...ASPECT_RATIOS] }, minItems: 1, maxItems: 1 },
+      { name: "aspectRatio", value: { kind: "enum", values: [...ASPECT_RATIOS], default: "9:16" }, minItems: 1, maxItems: 1 },
       {
         name: "duration",
         value: is25
@@ -62,8 +63,8 @@ function seedancePortTable(model: SeedanceModel): GenerationPortTable {
         minItems: 1,
         maxItems: 1,
       },
-      { name: "generateAudio", value: { kind: "boolean" }, minItems: 1, maxItems: 1 },
-      { name: "webSearch", value: { kind: "boolean" }, minItems: 1, maxItems: 1 },
+      { name: "generateAudio", value: { kind: "boolean", default: false }, minItems: 1, maxItems: 1 },
+      { name: "webSearch", value: { kind: "boolean", default: false }, minItems: 1, maxItems: 1 },
     ],
     requires: [
       // First-frame, first-and-last-frame and multimodal reference are three

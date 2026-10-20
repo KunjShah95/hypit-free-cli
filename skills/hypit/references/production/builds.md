@@ -160,6 +160,29 @@ additional media generation follows an intentional production choice covered by 
 Explain a meaningful change while proceeding when it is already covered; seek the user's decision
 when it changes what they have agreed to fund.
 
+## Generate one take without a Build
+
+```bash
+hypit generate --list
+hypit generate --model seedance-2-mini --prompt "A lighthouse at dusk." --duration 5 --to take.mp4
+```
+
+A production Run is the right shape for a whole video: many requests, durable state, a Result that
+outlives the terminal. A single take is not. `hypit generate` sends one exact model's request
+through the Endpoint the selected Runtime Profile chose, waits for the Provider to finish and
+writes the returned video to a file. It creates no Build, no Result and no project state, and it
+never chooses a model for you: `--list` names the video capabilities that Profile actually serves.
+
+The model's own vocabulary owns the request. `--duration`, `--resolution`, `--aspect-ratio`,
+`--quality`, `--generate-audio`, `--web-search`, `--seed` and the media options are that model's
+declared ports, and a value the model declares a default for is used when you do not choose one.
+A reference that shows a person needs `--person-reference true`.
+
+Use this command for a take you need now: a reference clip, a still frame to design against, a
+comparison of two prompts. Use a Build for the production itself, so its material carries lineage,
+its timing and its Results. The same paid scope covers both; `generate` spends exactly like the
+Build it stands in for, and a Result-free file is not a production Output.
+
 ## Submit one durable Build
 
 ```bash

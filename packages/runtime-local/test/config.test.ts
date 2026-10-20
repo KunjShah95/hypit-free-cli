@@ -635,8 +635,15 @@ test("Runtime invoke executes one immediate Need through the selected Endpoint a
           returns,
           lifecycle: "asynchronous",
           endpoint: {
-            start: async () => ({ status: "completed" as const, result: { value: { kind: "inline" as const, value: null } } }),
-            poll: async () => ({ status: "completed" as const, result: { value: { kind: "inline" as const, value: null } } }),
+            start: async ({ operation, checkpoint }) => {
+              await checkpoint?.({ handle: { task: operation }, receipt: { id: "task-1" } });
+              return { status: "pending" as const, handle: { task: operation }, wakeAt: Date.now() };
+            },
+            poll: async ({ handle }) => ({ status: "ready" as const, handle }),
+            collect: async ({ handle }) => ({
+              status: "completed" as const,
+              result: { value: { kind: "inline" as const, value: { generated: true, handle } } },
+            }),
           },
         }],
       }),
@@ -657,7 +664,15 @@ test("Runtime invoke executes one immediate Need through the selected Endpoint a
     });
     assert.deepEqual(messages, ["Aligning words", "Timing ready"]);
     await assert.rejects(invokeRuntimeConfigNeed(path, need(missing), resources, { registry }), /No Endpoint in .* serves example\.model@1#transcribe/u);
-    await assert.rejects(invokeRuntimeConfigNeed(path, need(generate), resources, { registry }), /asynchronous capability/u);
+    const phases: string[] = [];
+    const generated = await invokeRuntimeConfigNeed(path, need(generate), resources, {
+      registry,
+      reportProgress: async (event) => { phases.push(event.phase); },
+      limits: { minActionDelayMs: 1 },
+    });
+    assert.equal(generated.value.kind, "inline");
+    assert.deepEqual((generated.value as unknown as { value: { generated: boolean } }).value.generated, true);
+    assert.deepEqual(phases, ["submit", "poll", "collect"]);
     configured = false;
     await assert.rejects(invokeRuntimeConfigNeed(path, need(observe), resources, { registry }), /apiKey for Endpoint paid is not configured/u);
   } finally {

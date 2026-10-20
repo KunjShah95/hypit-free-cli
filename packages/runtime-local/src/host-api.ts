@@ -186,6 +186,21 @@ export type RuntimeHostCapabilityPricing = RuntimeHostCapabilityProvider & {
   readonly pricingError?: string;
 };
 
+/**
+ * One capability the selected Profile's Endpoints offer, and what it returns.
+ *
+ * This is the deployment's own catalogue: it names the exact capabilities and result types the
+ * configured Endpoints serve, so a caller can address one without already knowing it.
+ */
+export type RuntimeHostCapabilityOffer = {
+  readonly capability: CapabilityRef;
+  readonly returns: import("@hypit/hypit/protocol").TypeRef;
+  /** Every configured Endpoint instance that offers this capability. */
+  readonly endpoints: readonly string[];
+  /** The Endpoint instance the Profile's `bindings` name for this capability, when it names one. */
+  readonly binding?: string;
+};
+
 export type RuntimeHostProviderQuery = {
   readonly request: string;
   readonly capability: CapabilityRef;
@@ -273,9 +288,14 @@ export type LocalRuntimeHost = {
   /** Read current Provider-owned pricing material relevant to these requests. */
   pricing(requests: readonly RuntimeHostProviderQuery[]): Promise<readonly RuntimeHostCapabilityPricing[]>;
   /**
+   * Every capability the selected Profile's Endpoints offer, with the result type each one
+   * returns. Reads the Profile and Endpoint declarations only; never contacts a service.
+   */
+  capabilities(): Promise<readonly RuntimeHostCapabilityOffer[]>;
+  /**
    * Execute one immediate Need through the selected Endpoint and its credentials, outside any Build.
-   * The creation-time boundary for observation, transcription and other quick capabilities; it
-   * creates no Build, Result or state, and refuses asynchronous capabilities.
+   * The creation-time boundary for observation, transcription and generation; it creates no Build,
+   * Result or state. An asynchronous capability is driven to completion inside the call.
    */
   invoke(need: Need, resources: ResourceStore, observation?: RuntimeInvocationObservation): Promise<{ readonly value: StoredValue }>;
   /** Open one disposable authoring execution. It creates no Build, Result or recoverable Operation. */

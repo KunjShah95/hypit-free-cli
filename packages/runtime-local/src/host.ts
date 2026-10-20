@@ -12,6 +12,7 @@ import {
   createRuntimeResultControlFromConfig,
   createRuntimeCredentialsFromConfig,
   createRuntimeFromConfig,
+  describeRuntimeConfigCapabilities,
   describeRuntimeConfigProviders,
   doctorRuntimeConfig,
   invokeRuntimeConfigNeed,
@@ -144,6 +145,10 @@ export async function openLocalRuntimeHost(
       ...distribution,
     }),
     pricing: async (requests) => await readRuntimeConfigPricing(profile, requests, {
+      packageRoot: basePackageRoot,
+      ...distribution,
+    }),
+    capabilities: async () => await describeRuntimeConfigCapabilities(profile, {
       packageRoot: basePackageRoot,
       ...distribution,
     }),

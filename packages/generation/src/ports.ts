@@ -15,16 +15,17 @@ export type GenerationMediaRole = "image" | "video" | "audio";
 export const GENERATION_MEDIA_ROLES: readonly GenerationMediaRole[] = ["image", "video", "audio"];
 
 export type GenerationPortScalarKind =
-  | { readonly kind: "text"; readonly maxChars?: number }
-  | { readonly kind: "token"; readonly minLength: number; readonly maxLength: number }
-  | { readonly kind: "enum"; readonly values: readonly (string | number)[] }
+  | { readonly kind: "text"; readonly maxChars?: number; readonly default?: string }
+  | { readonly kind: "token"; readonly minLength: number; readonly maxLength: number; readonly default?: string }
+  | { readonly kind: "enum"; readonly values: readonly (string | number)[]; readonly default?: string | number }
   | {
       readonly kind: "number";
       readonly integer?: boolean;
       readonly minimum?: number;
       readonly maximum?: number;
+      readonly default?: number;
     }
-  | { readonly kind: "boolean" };
+  | { readonly kind: "boolean"; readonly default?: boolean };
 
 /** A scalar carried alongside one media item, such as a trimmed excerpt boundary. */
 export type GenerationPortItemField = {
@@ -101,7 +102,47 @@ export function isMediaPort(port: GenerationPort): port is GenerationMediaPort {
   return port.value.kind === "media";
 }
 
+/**
+ * The value a client may use when the author does not choose this port.
+ *
+ * A default is a fact about the model, so it belongs to the model's own port table. It is never
+ * applied to a request: a request that omits a port omits it, and a client that wants the
+ * default supplies it explicitly.
+ */
+function assertScalarDefault(value: GenerationPortScalarKind, subject: string): void {
+  const fallback = value.default;
+  if (fallback === undefined) return;
+  if (value.kind === "text") {
+    assert(typeof fallback === "string" && fallback.length > 0, `${subject} default must be non-empty text`);
+    if (value.maxChars !== undefined) {
+      assert(fallback.length <= value.maxChars, `${subject} default must contain at most ${value.maxChars} characters`);
+    }
+    return;
+  }
+  if (value.kind === "token") {
+    assert(typeof fallback === "string" && fallback.length >= value.minLength && fallback.length <= value.maxLength,
+      `${subject} default must be a token of ${value.minLength} to ${value.maxLength} characters`);
+    return;
+  }
+  if (value.kind === "enum") {
+    assert((typeof fallback === "string" || typeof fallback === "number") && value.values.includes(fallback),
+      `${subject} default must be one of ${value.values.join(", ")}`);
+    return;
+  }
+  if (value.kind === "number") {
+    assert(typeof fallback === "number" && Number.isFinite(fallback), `${subject} default must be a finite number`);
+    if (value.integer === true) {
+      assert(Number.isSafeInteger(fallback), `${subject} default must be a whole number`);
+    }
+    if (value.minimum !== undefined) assert(fallback >= value.minimum, `${subject} default must be at least ${value.minimum}`);
+    if (value.maximum !== undefined) assert(fallback <= value.maximum, `${subject} default must be at most ${value.maximum}`);
+    return;
+  }
+  assert(typeof fallback === "boolean", `${subject} default must be true or false`);
+}
+
 function assertScalarKind(value: GenerationPortScalarKind, subject: string): void {
+  assertScalarDefault(value, subject);
   if (value.kind === "text") {
     if (value.maxChars !== undefined) {
       assert(Number.isSafeInteger(value.maxChars) && value.maxChars > 0, `${subject} maxChars is invalid`);

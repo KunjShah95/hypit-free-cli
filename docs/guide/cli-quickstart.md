@@ -5,8 +5,8 @@ description: Use Hypit from the command line and through the interactive chat, i
 
 Hypit is distributed as `@hypit/hypit` with the `hypit` executable. Its command surface
 covers authoring (`check`, `plan`, `pricing`, `build`), Result inspection (`builds`,
-`history`, `logs`, `status`, `inspect`, `get`), credentials and Runtime operation
-(`doctor`, `auth`, `runtime`, `programs`, `paths`).
+`history`, `logs`, `status`, `inspect`, `get`), one-shot generation (`generate`),
+credentials and Runtime operation (`doctor`, `auth`, `runtime`, `programs`, `paths`).
 
 ## Install and run
 
@@ -18,6 +18,28 @@ npx @hypit/hypit --version
 npm install -g @hypit/hypit
 hypit --version
 ```
+
+## One-shot video generation
+
+```bash
+# The video capabilities the selected Runtime Profile serves
+hypit generate --list
+
+# Generate one take through the Endpoint that Profile selected
+hypit generate --model seedance-2-mini \
+  --prompt "A lighthouse at dusk." --duration 5 --to take.mp4
+```
+
+`generate` is one immediate request: the model submits the work, the command waits for the
+Provider to finish and writes the returned video to a file. No Build, no Result and no project
+state is created. The Provider's own prices apply, and the Runtime Profile decides which
+Endpoint serves the model.
+
+Every input keeps the meaning the selected model declares: `--duration`, `--resolution`,
+`--aspect-ratio`, `--quality`, `--generate-audio`, `--web-search`, `--seed` and the media
+options (`--reference-image`, `--reference-video`, `--reference-audio`, `--first-frame`,
+`--last-frame`) are that model's own ports. A reference that shows a person needs
+`--person-reference true`.
 
 ## Interactive chat mode (like OpenCode)
 

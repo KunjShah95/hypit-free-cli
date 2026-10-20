@@ -22,7 +22,7 @@ packages and contribute their own CLI roots:
 | `measure` | `@hypit/speech-estimate/cli` |
 | `transcribe` | `@hypit/whisperx/cli` |
 | `studio`, `snapshot` | `@hypit/studio/cli` |
-| `vocabulary` | `@hypit/video/cli` |
+| `vocabulary`, `generate` | `@hypit/video/cli` |
 
 The root executable is the composition root. Its explicit `hypit.cli.use` list installs these command
 contributions under one `hypit` command; `@hypit/video/cli` does not forward or rediscover them.
@@ -56,6 +56,24 @@ The command reports installed Author-package manifests and their declared Surfac
 a registry, scan the network, install packages or make creative choices. Package managers and the
 project lockfile own physical package versions; Source imports own which logical Modules participate
 in a compilation.
+
+## Generation
+
+```bash
+hypit generate --list
+hypit generate --model seedance-2-mini --prompt "A lighthouse at dusk." --duration 5 --to take.mp4
+```
+
+`generate` asks the selected Runtime Profile which exact video models its Endpoints serve, sends that
+model's own request through the Endpoint the Profile selected, and writes the returned video to a
+file. It is one immediate request: no Build, no Result and no project state is created. `--list`
+names the video capabilities that Profile serves.
+
+The command reads the model's own port table, so every input keeps the meaning that model declares.
+`--duration`, `--resolution`, `--aspect-ratio`, `--quality`, `--generate-audio`, `--web-search`,
+`--seed` and the media options are the ports of the selected model; a value the model declares a
+default for is used when the caller does not choose one. The model package owns those facts, so the
+command never carries a second opinion about them.
 
 ## Boundary
 

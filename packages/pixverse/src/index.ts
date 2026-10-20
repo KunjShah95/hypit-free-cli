@@ -59,7 +59,7 @@ function pixversePortTable(model: PixverseModel): GenerationPortTable {
       ...referenceVideo,
       // Required except in the reference-video mode, which pixverseRequestValidator states.
       { name: "duration", value: { kind: "number", integer: true, minimum: 1, maximum: 15 }, minItems: 0, maxItems: 1 },
-      { name: "quality", value: { kind: "enum", values: [...PIXVERSE_QUALITIES] }, minItems: 1, maxItems: 1 },
+      { name: "quality", value: { kind: "enum", values: [...PIXVERSE_QUALITIES], default: "720p" }, minItems: 1, maxItems: 1 },
       {
         name: "aspectRatio",
         value: { kind: "enum", values: v6 ? [...PIXVERSE_V6_ASPECT_RATIOS] : [...PIXVERSE_ASPECT_RATIOS] },
